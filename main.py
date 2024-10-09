@@ -14,13 +14,13 @@ def click_inputs():
     elements = wd.find_elements(By.TAG_NAME, "input")
     for i in range(0, len(elements), 7):
         group = elements[i:i + 7]  # 切片取出七个元素
-        first_input = group[0]
         try:
             # 滚动到元素可见
-            wd.execute_script("arguments[0].scrollIntoView(true);", first_input)
+            input = group[1]
+            wd.execute_script("arguments[0].scrollIntoView(true);", input )
             # 使用 JavaScript 点击元素
-            wd.execute_script("arguments[0].click();", first_input)
-            print("Clicked " + group[0].get_attribute("aria-label"))
+            wd.execute_script("arguments[0].click();", input )
+            print("Clicked " + input.get_attribute("aria-label"))
         except Exception as e:
             print(f"Error clicking the input element: {e}")
 
@@ -57,32 +57,34 @@ if __name__ == "__main__":
         )
 
         # 提取每个 traitbox__text 元素的信息
-        results = {}
+        values = []
         for element in trait_elements:
             # 获取 Nature 和值
-            label = element.find_element(By.CLASS_NAME, "traitbox__label").text.strip()
             value = element.find_element(By.CLASS_NAME, "traitbox__value").text.strip()
             # 存入字典中
-            results[label] = value
-
-        # 打印结果以确认
-        for key, value in results.items():
-            print(f"{key}: {value}")
+            values.append(value)
 
         # 创建 DataFrame
-        df = pd.DataFrame(columns=["Energy", "Mind", "Nature", "Tactics", "Identity"])
-        name = ["Energy", "Mind", "Nature", "Tactics", "Identity"]
-        # 根据提取的结果填充 DataFrame
-        for i in range(5):
-            df[name[i]] = [results[name[i]+":"]]  # 以列表形式添加数据
 
-        # 检查是否存在 result.xlsx 文件
+        column_names = ["Energy", "Mind", "Nature", "Tactics", "Identity"]
+        new_row = pd.DataFrame([values], columns=column_names)
+        # 根据提取的结果填充 DataFrame
+
         file_path = "result.xlsx"
         # 保存到 Excel 文件
-        with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
+        try:
+            # 使用 append 模式打开文件
+            existing_df = pd.read_excel(file_path, sheet_name='Sheet1')
 
-        print("Results saved to result.xlsx")
+            # 将新行追加到现有数据的底部
+            updated_df = pd.concat([existing_df, new_row], ignore_index=True)
+
+            # 保存更新后的 DataFrame 到 Excel 文件
+            with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
+                updated_df.to_excel(writer, sheet_name='Sheet1', index=False)
+        except FileNotFoundError:
+            # 如果文件不存在，创建一个新文件
+            new_row.to_excel(file_path, sheet_name='Sheet1', index=False)
 
     except Exception as e:
         print(f"Error occurred: {e}")
