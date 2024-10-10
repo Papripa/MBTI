@@ -8,39 +8,40 @@ import pandas as pd
 import os
 question_dict = {"I": [6,15,21,26,41,51],"E":[1,11,16,31,36,43,53]};
 
-def click_inputs():
+def click_inputs(wd,susp,degree,cnt):
 
     wd.implicitly_wait(3)
     elements = wd.find_elements(By.TAG_NAME, "input")
+
     for i in range(0, len(elements), 7):
         group = elements[i:i + 7]  # 切片取出七个元素
         try:
             # 滚动到元素可见
-            input = group[1]
+            if cnt[0] == susp:
+                input  = group[degree]
+                print("Clicked "+ str(cnt[0]) + " susp: " + str(susp) + " "+ input.get_attribute("aria-label"))
+            else:
+                input = group[0]
             wd.execute_script("arguments[0].scrollIntoView(true);", input )
             # 使用 JavaScript 点击元素
             wd.execute_script("arguments[0].click();", input )
-            print("Clicked " + input.get_attribute("aria-label"))
+            cnt[0] += 1
         except Exception as e:
             print(f"Error clicking the input element: {e}")
 
-
-if __name__ == "__main__":
+def once(susp,degree,cnt):
     wd = webdriver.Chrome()
     wd.get('https://www.16personalities.com/free-personality-test')
-    i = 1
     while True:
         # 初始点击输入框
-        click_inputs()
+        click_inputs(wd,susp,degree,cnt)
         next_buttons = wd.find_elements(By.XPATH, "//button[@aria-label='Go to next set of questions']")
         if next_buttons:  # 如果找到了 Next 按钮
             next_button = next_buttons[0]  # 取第一个找到的按钮
             next_button.click()  # 点击 Next 按钮
-            print("Clicked the Next button.")
         else:
             print("No Next button found. Exiting loop.")
             break
-        print("-----------------------------PAGE\n-----------------------------")
 
         # 等待并尝试点击 Next 按钮
     try:
@@ -58,36 +59,67 @@ if __name__ == "__main__":
 
         # 提取每个 traitbox__text 元素的信息
         values = []
+        traits = []
         for element in trait_elements:
             # 获取 Nature 和值
             value = element.find_element(By.CLASS_NAME, "traitbox__value").text.strip()
+            percentage, trait = value.split(" ", 1)
+            traits.append(trait)
             # 存入字典中
-            values.append(value)
-
+            values.append(percentage)
+        type = ""
+        if  'I' in traits[0]:
+            type += 'I'
+        else:
+            type += 'E'
+        if  'S' in traits[1]:
+            type += 'S'
+        else:
+            type += 'N'
+        if  'T' in traits[2]:
+            type += 'T'
+        else:
+            type += 'F'
+        if  'J' in traits[3]:
+            type += 'J'
+        else:
+            type += 'P'
         # 创建 DataFrame
-
-        column_names = ["Energy", "Mind", "Nature", "Tactics", "Identity"]
+        values.append(type)
+        column_names = ["Energy", "Mind", "Nature", "Tactics", "Identity","Type"]
         new_row = pd.DataFrame([values], columns=column_names)
         # 根据提取的结果填充 DataFrame
-
-        file_path = "result.xlsx"
-        # 保存到 Excel 文件
         try:
-            # 使用 append 模式打开文件
-            existing_df = pd.read_excel(file_path, sheet_name='Sheet1')
-
+            file_path = "result.xlsx"
+            existing_df = pd.read_excel(file_path, sheet_name='Task 2')
             # 将新行追加到现有数据的底部
             updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-
             # 保存更新后的 DataFrame 到 Excel 文件
             with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
-                updated_df.to_excel(writer, sheet_name='Sheet1', index=False)
+                updated_df.to_excel(writer, sheet_name='Task 2', index=False)
         except FileNotFoundError:
             # 如果文件不存在，创建一个新文件
-            new_row.to_excel(file_path, sheet_name='Sheet1', index=False)
+            new_row.to_excel(file_path, sheet_name='Task 2', index=False)
 
     except Exception as e:
         print(f"Error occurred: {e}")
 
     # 关闭浏览器
     wd.quit()
+
+if __name__ == "__main__":
+    print(list(range(1, 7)))
+    num = 1
+    for m in list(range(1, 71)):
+        for degree in list(range(1, 7)):
+            cnt = [1]
+            print(str(num) + "try")
+            num += 1
+            once(m,degree,cnt)
+
+    ## Tasks
+    ## 1: individual check -- each question only contribute to one dimension
+
+    ## 2: each question contribute equally
+    ## 3: even different but the same
+
